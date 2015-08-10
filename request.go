@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -45,9 +47,32 @@ import (
 //
 // model interface{} should be a pointer to a struct.
 func UnmarshalPayload(in io.Reader, model interface{}) error {
-	payload := new(OnePayload)
+	//could decode to mapStringInterface first and test for Data!
+	// might be slow to have to double parse...
+	fullPayload, err := ioutil.ReadAll(in)
+	if err != nil {
+		log.Println("Payload was not full", err.Error())
+		return err
+	}
 
-	if err := json.NewDecoder(in).Decode(payload); err != nil {
+	var payloadO interface{}
+	if err := json.Unmarshal(fullPayload, &payloadO); err != nil {
+		log.Println("ERRRR:", err.Error())
+		return err
+	}
+
+	jsonPay := payloadO.(map[string]interface{})
+	log.Println("PAY:", payloadO)
+	var emptyData bool
+	if _, exists := jsonPay["data"]; exists {
+		log.Println("HAS DATA!!!!")
+		emptyData = true
+	}
+	log.Println("DATA:", jsonPay)
+
+	payload := new(OnePayload)
+	if err := json.Unmarshal(fullPayload, payload); err != nil {
+		log.Println("ERRRR:", err.Error())
 		return err
 	}
 
@@ -60,6 +85,16 @@ func UnmarshalPayload(in io.Reader, model interface{}) error {
 
 		return unmarshalNode(payload.Data, reflect.ValueOf(model), &includedMap)
 	} else {
+		log.Println(payload)
+		if !emptyData {
+			log.Println("NILLLLLL")
+			return errors.New("No data element")
+		}
+		if payload.Data == nil && emptyData {
+			log.Println("EMPTY DATA!")
+			return nil
+		}
+		log.Println(payload.Data)
 		return unmarshalNode(payload.Data, reflect.ValueOf(model), nil)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -24,6 +25,36 @@ func TestMalformedTag(t *testing.T) {
 
 	if !r.Match([]byte(err.Error())) {
 		t.Fatalf("The err was not due two two few arguments in a tag")
+	}
+}
+
+func TestEmptyJSONData(t *testing.T) {
+	out := new(Blog)
+
+	jsonData := strings.NewReader(`{"data": {}}`)
+	err := UnmarshalPayload(jsonData, out)
+	if err != nil {
+		t.Fatalf("Should not fail to parse empty data attribute.")
+	}
+}
+
+func TestNullJSONData(t *testing.T) {
+	out := new(Blog)
+
+	jsonData := strings.NewReader(`{"data": null}`)
+	err := UnmarshalPayload(jsonData, out)
+	if err != nil && err.Error() == "No data element" {
+		t.Fatalf("Wrong error message: `%s`", err.Error())
+	}
+}
+
+func TestNonCompliantJSON(t *testing.T) {
+	out := new(Blog)
+
+	jsonData := strings.NewReader(`{"stuff": {"more": true}}`)
+	err := UnmarshalPayload(jsonData, out)
+	if err.Error() != "No data element" {
+		t.Fatalf("Wrong error message")
 	}
 }
 
